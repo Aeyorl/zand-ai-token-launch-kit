@@ -28,6 +28,7 @@ const NETWORKS = [
   { key: 'arbitrum-sepolia', name: 'Arbitrum Sepolia Testnet', chainId: 421614, currency: 'ETH', isTestnet: true },
   { key: 'ethereum-mainnet', name: 'Ethereum Mainnet', chainId: 1, currency: 'ETH', isTestnet: false },
   { key: 'sepolia-testnet', name: 'Ethereum Sepolia Testnet', chainId: 11155111, currency: 'ETH', isTestnet: true },
+  { key: 'robinhood-mainnet', name: 'Robinhood Chain Mainnet', chainId: 42170, currency: 'ETH', isTestnet: false },
 ]
 
 function App() {
@@ -740,7 +741,7 @@ function App() {
                 type="button"
                 onClick={() => handleOpenEcosystems('robinhood')}
               >
-                Robinhood Readiness (95%)
+                Robinhood Mainnet (Chain ID 42170)
               </button>
               <button
                 className={`tab-btn ${ecosystemTab === 'telegram' ? 'active' : ''}`}
@@ -836,9 +837,43 @@ function App() {
               </div>
             )}
 
-            {/* TAB 3: ROBINHOOD READINESS */}
+            {/* TAB 3: ROBINHOOD READINESS & ROBINHOOD MAINNET */}
             {ecosystemTab === 'robinhood' && robinhoodAudit && (
               <div>
+                {/* Robinhood Mainnet Banner */}
+                <div
+                  style={{
+                    padding: 16,
+                    borderRadius: 16,
+                    background: 'rgba(0, 244, 163, 0.12)',
+                    border: '1px solid #00f4a3',
+                    marginBottom: 16,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                    <div>
+                      <strong style={{ color: '#00f4a3', fontSize: '1rem' }}>
+                        🏹 Robinhood Chain Mainnet (EVM L2)
+                      </strong>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                        Chain ID: <strong>42170</strong> · RPC: <code>https://mainnet.robinhood.com/rpc</code> · Currency: <strong>ETH</strong>
+                      </p>
+                    </div>
+                    <button
+                      className="action-button primary"
+                      type="button"
+                      style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                      onClick={() => {
+                        setSelectedNetwork('robinhood-mainnet')
+                        setIsEcosystemOpen(false)
+                        handleStartDeployment()
+                      }}
+                    >
+                      Deploy on Robinhood Mainnet →
+                    </button>
+                  </div>
+                </div>
+
                 <div className="score-gauge-box">
                   <div>
                     <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>

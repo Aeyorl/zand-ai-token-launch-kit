@@ -65,6 +65,24 @@ export const SUPPORTED_NETWORKS: Record<string, NetworkConfig> = {
     explorerUrl: 'https://sepolia.etherscan.io',
     isTestnet: true,
   },
+  'robinhood-mainnet': {
+    key: 'robinhood-mainnet',
+    name: 'Robinhood Chain Mainnet',
+    chainId: 42170,
+    currency: 'ETH',
+    rpcUrl: process.env.ROBINHOOD_RPC_URL || 'https://mainnet.robinhood.com/rpc',
+    explorerUrl: 'https://explorer.robinhood.com',
+    isTestnet: false,
+  },
+  'robinhood-testnet': {
+    key: 'robinhood-testnet',
+    name: 'Robinhood Testnet',
+    chainId: 42171,
+    currency: 'ETH',
+    rpcUrl: process.env.ROBINHOOD_TESTNET_RPC_URL || 'https://testnet.robinhood.com/rpc',
+    explorerUrl: 'https://testnet-explorer.robinhood.com',
+    isTestnet: true,
+  },
 }
 
 export interface DetailedDeploymentPlan {

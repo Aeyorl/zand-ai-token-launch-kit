@@ -2,7 +2,7 @@ import type { LaunchKit } from '../src/brandGenerator'
 import { cleanContractName, generateSolidityCode } from './deployment'
 
 export interface LiquidityPairingPlan {
-  chain: 'ethereum' | 'solana' | 'base' | 'arbitrum'
+  chain: 'robinhood' | 'ethereum' | 'solana' | 'base' | 'arbitrum'
   dexName: string
   dexUrl: string
   pairWith: string
@@ -61,7 +61,7 @@ export interface SolanaSplLaunchConfig {
 
 export function buildLiquidityPlan(
   kit: LaunchKit,
-  chain: 'ethereum' | 'solana' | 'base' | 'arbitrum' = 'base',
+  chain: 'robinhood' | 'ethereum' | 'solana' | 'base' | 'arbitrum' = 'base',
   options: { initialEthOrSol?: number; pairedTokenPriceUsd?: number } = {},
 ): LiquidityPairingPlan {
   const cleanSupply = Number((kit.tokenomics?.supply || '1000000000').replace(/,/g, '')) || 1_000_000_000
@@ -73,6 +73,37 @@ export function buildLiquidityPlan(
   const totalDepositUsd = pairedAmount * pairedPrice
   const tokenPriceUsd = totalDepositUsd / tokensInLp
   const marketCapUsd = tokenPriceUsd * cleanSupply
+
+  if (chain === 'robinhood') {
+    return {
+      chain: 'robinhood',
+      dexName: 'Robinhood Chain DEX & Robinhood Swap',
+      dexUrl: 'https://robinhood.com/crypto',
+      pairWith: 'ETH',
+      initialTokenDeposit: tokensInLp.toLocaleString(),
+      initialPairedDeposit: `${pairedAmount} ETH (~$${(pairedAmount * pairedPrice).toLocaleString()} USD)`,
+      estimatedStartingPriceUsd: `$${tokenPriceUsd.toFixed(8)}`,
+      estimatedInitialMarketCapUsd: `$${Math.round(marketCapUsd).toLocaleString()}`,
+      instructions: [
+        `1. Deploy ${kit.tokenName} contract to Robinhood Chain Mainnet (Chain ID 42170).`,
+        `2. Seed initial liquidity (${tokensInLp.toLocaleString()} ${kit.primaryTicker} + ${pairedAmount} ETH) on Robinhood Chain DEX.`,
+        '3. Lock LP tokens in Robinhood verified smart contract locker for minimum 12 months.',
+        '4. Submit token metadata to Robinhood Wallet token registry for self-custodial trading.',
+        '5. Enable zero-fee fiat-to-token onramp via Robinhood Connect widget.',
+      ],
+      poolCreationSnippet: `// Robinhood Chain Mainnet (Chain ID: 42170) Liquidity Seeder
+const robinhoodRouter = new ethers.Contract(ROBINHOOD_ROUTER_ADDRESS, ROUTER_ABI, deployerWallet);
+await robinhoodRouter.addLiquidityETH(
+    tokenAddress,
+    ethers.parseUnits("${tokensInLp}", 18),
+    0, // slippage tolerance
+    0,
+    deployerWallet.address,
+    Math.floor(Date.now() / 1000) + 1200,
+    { value: ethers.parseEther("${pairedAmount}") }
+);`,
+    }
+  }
 
   if (chain === 'solana') {
     return {

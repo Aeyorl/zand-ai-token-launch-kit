@@ -65,7 +65,7 @@ export type DeploymentPlan = {
 }
 
 export type LiquidityPlan = {
-  chain: 'ethereum' | 'solana' | 'base' | 'arbitrum'
+  chain: 'robinhood' | 'ethereum' | 'solana' | 'base' | 'arbitrum'
   dexName: string
   dexUrl: string
   pairWith: string
