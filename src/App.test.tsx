@@ -46,4 +46,13 @@ describe('App', () => {
     expect(html).toContain('Robinhood Readiness')
     expect(html).toContain('Download Full Raid Package (.ZIP)')
   })
+
+  it('renders Meme Studio, Landing Page generator, and Web3 connection controls', () => {
+    const html = renderToStaticMarkup(<App />)
+
+    expect(html).toContain('Meme Studio')
+    expect(html).toContain('Landing Page')
+    expect(html).toContain('Connect Web3')
+    expect(html).toContain('Open Interactive Meme Studio 🎨')
+  })
 })

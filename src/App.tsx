@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import {
   type DeploymentPlan,
@@ -14,6 +14,16 @@ import {
 } from './api'
 import { exportLaunchKitMarkdown, generateLaunchKit, type LaunchKit } from './brandGenerator'
 import { downloadBlobAsFile, generateRaidKitZip } from './raidKit'
+import { generateLandingPageHtml } from './landingPage'
+import { drawMemeToCanvas, downloadCanvasMeme } from './memeCanvas'
+import {
+  type WalletState,
+  type SolanaWalletState,
+  connectInjectedWallet,
+  connectSolanaWallet,
+  switchOrAddChain,
+  deployContractViaInjectedWallet,
+} from './web3'
 
 const examples = [
   'Angry billionaire cat that hates Wall Street.',
@@ -22,13 +32,76 @@ const examples = [
 ]
 
 const NETWORKS = [
-  { key: 'base-mainnet', name: 'Base Mainnet', chainId: 8453, currency: 'ETH', isTestnet: false },
-  { key: 'base-sepolia', name: 'Base Sepolia Testnet', chainId: 84532, currency: 'ETH', isTestnet: true },
-  { key: 'arbitrum-one', name: 'Arbitrum One', chainId: 42161, currency: 'ETH', isTestnet: false },
-  { key: 'arbitrum-sepolia', name: 'Arbitrum Sepolia Testnet', chainId: 421614, currency: 'ETH', isTestnet: true },
-  { key: 'ethereum-mainnet', name: 'Ethereum Mainnet', chainId: 1, currency: 'ETH', isTestnet: false },
-  { key: 'sepolia-testnet', name: 'Ethereum Sepolia Testnet', chainId: 11155111, currency: 'ETH', isTestnet: true },
-  { key: 'robinhood-mainnet', name: 'Robinhood Chain Mainnet', chainId: 42170, currency: 'ETH', isTestnet: false },
+  {
+    key: 'base-mainnet',
+    name: 'Base Mainnet',
+    chainId: 8453,
+    currency: 'ETH',
+    rpcUrl: 'https://mainnet.base.org',
+    explorerUrl: 'https://basescan.org',
+    isTestnet: false,
+  },
+  {
+    key: 'base-sepolia',
+    name: 'Base Sepolia Testnet',
+    chainId: 84532,
+    currency: 'ETH',
+    rpcUrl: 'https://sepolia.base.org',
+    explorerUrl: 'https://sepolia.basescan.org',
+    isTestnet: true,
+  },
+  {
+    key: 'arbitrum-one',
+    name: 'Arbitrum One',
+    chainId: 42161,
+    currency: 'ETH',
+    rpcUrl: 'https://arb1.arbitrum.io/rpc',
+    explorerUrl: 'https://arbiscan.io',
+    isTestnet: false,
+  },
+  {
+    key: 'arbitrum-sepolia',
+    name: 'Arbitrum Sepolia Testnet',
+    chainId: 421614,
+    currency: 'ETH',
+    rpcUrl: 'https://sepolia-rollup.arbitrum.io/rpc',
+    explorerUrl: 'https://sepolia.arbiscan.io',
+    isTestnet: true,
+  },
+  {
+    key: 'ethereum-mainnet',
+    name: 'Ethereum Mainnet',
+    chainId: 1,
+    currency: 'ETH',
+    rpcUrl: 'https://eth.llamarpc.com',
+    explorerUrl: 'https://etherscan.io',
+    isTestnet: false,
+  },
+  {
+    key: 'sepolia-testnet',
+    name: 'Ethereum Sepolia Testnet',
+    chainId: 11155111,
+    currency: 'ETH',
+    rpcUrl: 'https://rpc.sepolia.org',
+    explorerUrl: 'https://sepolia.etherscan.io',
+    isTestnet: true,
+  },
+  {
+    key: 'robinhood-mainnet',
+    name: 'Robinhood Chain Mainnet',
+    chainId: 42170,
+    currency: 'ETH',
+    rpcUrl: 'https://mainnet.robinhood.com/rpc',
+    explorerUrl: 'https://explorer.robinhood.com',
+    isTestnet: false,
+  },
+]
+
+const BG_GRADIENTS: [string, string][] = [
+  ['#0b0f19', '#1e1035'],
+  ['#051c24', '#043431'],
+  ['#26081c', '#090b10'],
+  ['#1e1b4b', '#0f172a'],
 ]
 
 function App() {
@@ -78,6 +151,34 @@ function App() {
   const [selectedBotCommand, setSelectedBotCommand] = useState<string>('/buy')
   const [isDownloadingRaidKit, setIsDownloadingRaidKit] = useState(false)
 
+  // Web3 & Solana Wallets
+  const [walletState, setWalletState] = useState<WalletState>({
+    isConnected: false,
+    address: null,
+    chainId: null,
+    balanceEth: null,
+    providerName: null,
+    error: null,
+  })
+  const [solanaWalletState, setSolanaWalletState] = useState<SolanaWalletState>({
+    isConnected: false,
+    publicKey: null,
+    providerName: null,
+    error: null,
+  })
+
+  // Meme Studio state
+  const [isMemeStudioOpen, setIsMemeStudioOpen] = useState(false)
+  const memeCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const [memeTopText, setMemeTopText] = useState('WHEN YOU BUY THE DIP')
+  const [memeBottomText, setMemeBottomText] = useState('AND IT PUMPS 100X OVERNIGHT')
+  const [memeLaserEyes, setMemeLaserEyes] = useState(true)
+  const [memeSticker, setMemeSticker] = useState<'none' | 'moon' | 'diamond' | 'robinhood' | '100x'>('robinhood')
+  const [memeBgIndex, setMemeBgIndex] = useState(0)
+
+  // 1-Click Landing Page Generator state
+  const [isLandingModalOpen, setIsLandingModalOpen] = useState(false)
+
   // Kit calculation
   const kit: LaunchKit = useMemo(() => generateLaunchKit(activePrompt), [activePrompt])
   const markdown = useMemo(() => exportLaunchKitMarkdown(kit), [kit])
@@ -126,6 +227,125 @@ function App() {
       productApi.listProjects().then((items) => setSavedProjects(items))
     }
   }, [isProjectsOpen])
+
+  // Draw Meme to Canvas whenever Meme Studio is opened or parameters change
+  useEffect(() => {
+    if (isMemeStudioOpen && memeCanvasRef.current) {
+      drawMemeToCanvas(memeCanvasRef.current, {
+        topText: memeTopText,
+        bottomText: memeBottomText,
+        enableLaserEyes: memeLaserEyes,
+        sticker: memeSticker,
+        ticker: kit.primaryTicker,
+        backgroundGradient: BG_GRADIENTS[memeBgIndex % BG_GRADIENTS.length],
+      })
+    }
+  }, [
+    isMemeStudioOpen,
+    memeTopText,
+    memeBottomText,
+    memeLaserEyes,
+    memeSticker,
+    memeBgIndex,
+    kit.primaryTicker,
+  ])
+
+  const handleConnectWeb3 = async () => {
+    try {
+      const state = await connectInjectedWallet()
+      setWalletState(state)
+      if (state.isConnected && state.address) {
+        setDeployerAddress(state.address)
+        showToast(
+          `Connected ${state.providerName || 'Wallet'}: ${state.address.slice(0, 6)}...${state.address.slice(-4)}`,
+        )
+      } else if (state.error) {
+        showToast(state.error)
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Wallet error'
+      showToast(msg)
+    }
+  }
+
+  const handleConnectSolana = async () => {
+    try {
+      const state = await connectSolanaWallet()
+      setSolanaWalletState(state)
+      if (state.isConnected && state.publicKey) {
+        showToast(
+          `Connected ${state.providerName}: ${state.publicKey.slice(0, 4)}...${state.publicKey.slice(-4)}`,
+        )
+      } else if (state.error) {
+        showToast(state.error)
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Solana error'
+      showToast(msg)
+    }
+  }
+
+  const handleSwitchToRobinhoodChain = async () => {
+    const success = await switchOrAddChain('robinhood-mainnet')
+    if (success) {
+      showToast('Switched to Robinhood Chain Mainnet (42170)!')
+      const state = await connectInjectedWallet()
+      setWalletState(state)
+    } else {
+      showToast('Failed to switch network in wallet')
+    }
+  }
+
+  const handleDeployWithWeb3 = async () => {
+    if (!walletState.isConnected || !walletState.address) {
+      await handleConnectWeb3()
+      return
+    }
+    setIsDeploying(true)
+    try {
+      const result = await deployContractViaInjectedWallet(
+        kit.tokenName,
+        kit.primaryTicker,
+        kit.tokenomics.supply,
+        walletState.address,
+      )
+      const net = NETWORKS.find((n) => n.key === selectedNetwork) || NETWORKS[0]
+      setDeploymentRecord({
+        id: `dep-${Date.now()}`,
+        tokenName: kit.tokenName,
+        symbol: kit.primaryTicker,
+        network: {
+          chainId: net.chainId,
+          name: net.name,
+          rpcUrl: net.rpcUrl,
+          explorerUrl: net.explorerUrl,
+        },
+        contractAddress: result.contractAddress,
+        deployerAddress: walletState.address,
+        txHash: result.txHash,
+        createdAt: new Date().toISOString(),
+      })
+      showToast('🎉 Contract deployed directly via Web3 Wallet!')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Deployment failed'
+      showToast(msg)
+    } finally {
+      setIsDeploying(false)
+    }
+  }
+
+  const handleRandomMemeCaption = () => {
+    const MEME_CAPTIONS = [
+      { top: `WHEN YOU BUY $${kit.primaryTicker.replace('$', '')}`, bottom: 'AND IT PUMPS 1000X OVERNIGHT' },
+      { top: 'WALL STREET SAID NO', bottom: `COMMUNITY SAID $${kit.primaryTicker.replace('$', '')}` },
+      { top: '0% TAX. 100% LP LOCKED.', bottom: 'ROBINHOOD MAINNET APPROVED' },
+      { top: 'SOLD TOO EARLY?', bottom: 'HAVE FUN STAYING BROKE' },
+    ]
+    const random = MEME_CAPTIONS[Math.floor(Math.random() * MEME_CAPTIONS.length)]
+    setMemeTopText(random.top)
+    setMemeBottomText(random.bottom)
+    setMemeBgIndex((prev) => prev + 1)
+  }
 
   const handleGenerate = async () => {
     setActivePrompt(prompt)
@@ -302,6 +522,10 @@ function App() {
         baseContractAddress: deploymentRecord?.contractAddress || '0x_BASE_CONTRACT_ADDRESS',
         ethereumContractAddress: '0x_ETHEREUM_CONTRACT_ADDRESS',
         solanaMintAddress: 'SOL_SPL_MINT_ADDRESS',
+        robinhoodContractAddress:
+          selectedNetwork === 'robinhood-mainnet'
+            ? deploymentRecord?.contractAddress || '0x42170bA5E8C9472DaE419Fa432170DEAdbeef123'
+            : undefined,
       })
       const filename = `${kit.primaryTicker.replace('$', '').toLowerCase()}-raid-kit.zip`
       downloadBlobAsFile(blob, filename)
@@ -342,6 +566,22 @@ function App() {
           <a href="#generator">Generator</a>
           <a href="#kit">Launch Kit</a>
           <a href="#studio">Studio</a>
+          <button
+            type="button"
+            className="nav-button"
+            style={{ padding: '6px 12px' }}
+            onClick={() => setIsMemeStudioOpen(true)}
+          >
+            Meme Studio
+          </button>
+          <button
+            type="button"
+            className="nav-button"
+            style={{ padding: '6px 12px' }}
+            onClick={() => setIsLandingModalOpen(true)}
+          >
+            Landing Page
+          </button>
           <a href="#platform">Platform Token</a>
           <button
             type="button"
@@ -354,6 +594,31 @@ function App() {
         </div>
 
         <div className="nav-actions">
+          {/* Web3 Injected Wallet Connect */}
+          {walletState.isConnected ? (
+            <div
+              className="wallet-badge-connected"
+              title={`Chain ID: ${walletState.chainId} | Provider: ${walletState.providerName}`}
+            >
+              <span className="dot" />
+              <span>
+                {walletState.address
+                  ? `${walletState.address.slice(0, 6)}...${walletState.address.slice(-4)}`
+                  : 'Connected'}
+              </span>
+              <span style={{ fontSize: '0.75rem', opacity: 0.85 }}>({walletState.balanceEth} ETH)</span>
+            </div>
+          ) : (
+            <button
+              className="nav-button"
+              type="button"
+              onClick={handleConnectWeb3}
+              style={{ border: '1px solid rgba(0, 240, 255, 0.5)', color: '#00f0ff' }}
+            >
+              Connect Web3
+            </button>
+          )}
+
           <button
             className="nav-button primary"
             type="button"
@@ -410,6 +675,12 @@ function App() {
             </a>
             <button className="action-button primary" type="button" onClick={handleDownloadRaidKit}>
               Download Raid Kit (.ZIP)
+            </button>
+            <button className="secondary-link" type="button" onClick={() => setIsMemeStudioOpen(true)}>
+              Meme Studio
+            </button>
+            <button className="secondary-link" type="button" onClick={() => setIsLandingModalOpen(true)}>
+              Landing Page
             </button>
             <button className="secondary-link" type="button" onClick={() => handleOpenEcosystems('robinhood')}>
               Robinhood &amp; Solana
@@ -568,10 +839,29 @@ function App() {
         </article>
 
         <article className="card span-2 meme-studio">
-          <h3>Meme templates</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <h3 style={{ margin: 0 }}>Meme templates</h3>
+            <button
+              className="action-button primary"
+              type="button"
+              style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+              onClick={() => setIsMemeStudioOpen(true)}
+            >
+              Open Interactive Meme Studio 🎨
+            </button>
+          </div>
           <div className="meme-grid">
             {kit.memeTemplates.map((meme) => (
-              <div className="meme-card" key={meme.title}>
+              <div
+                className="meme-card"
+                key={meme.title}
+                style={{ cursor: 'pointer' }}
+                onClick={() => {
+                  setMemeTopText(meme.top)
+                  setMemeBottomText(meme.bottom)
+                  setIsMemeStudioOpen(true)
+                }}
+              >
                 <span>{meme.top}</span>
                 <div className="mini-mascot">😾</div>
                 <span>{meme.bottom}</span>
@@ -807,6 +1097,40 @@ function App() {
                   Deploy <strong>{kit.tokenName}</strong> on Solana with Token-2022 and seed Raydium CPMM:
                 </p>
 
+                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  {solanaWalletState.isConnected ? (
+                    <div
+                      className="wallet-badge-connected"
+                      style={{
+                        borderColor: '#9945FF',
+                        color: '#14F195',
+                        background: 'rgba(153, 69, 255, 0.1)',
+                      }}
+                    >
+                      <span className="dot" style={{ background: '#14F195', boxShadow: '0 0 10px #14F195' }} />
+                      <span>
+                        {solanaWalletState.publicKey
+                          ? `${solanaWalletState.publicKey.slice(0, 4)}...${solanaWalletState.publicKey.slice(-4)}`
+                          : 'Connected'}{' '}
+                        ({solanaWalletState.providerName})
+                      </span>
+                    </div>
+                  ) : (
+                    <button
+                      className="action-button primary"
+                      type="button"
+                      onClick={handleConnectSolana}
+                      style={{
+                        background: 'linear-gradient(135deg, #9945FF, #14F195)',
+                        color: '#07100d',
+                        fontWeight: 800,
+                      }}
+                    >
+                      Connect Solana Wallet (Phantom / Solflare)
+                    </button>
+                  )}
+                </div>
+
                 <div className="code-viewer" style={{ marginBottom: 16 }}>
                   {solanaConfig.cliCommands.join('\n')}
                 </div>
@@ -859,18 +1183,28 @@ function App() {
                         Chain ID: <strong>42170</strong> · RPC: <code>https://mainnet.robinhood.com/rpc</code> · Currency: <strong>ETH</strong>
                       </p>
                     </div>
-                    <button
-                      className="action-button primary"
-                      type="button"
-                      style={{ padding: '8px 14px', fontSize: '0.82rem' }}
-                      onClick={() => {
-                        setSelectedNetwork('robinhood-mainnet')
-                        setIsEcosystemOpen(false)
-                        handleStartDeployment()
-                      }}
-                    >
-                      Deploy on Robinhood Mainnet →
-                    </button>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <button
+                        className="action-button secondary"
+                        type="button"
+                        style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                        onClick={handleSwitchToRobinhoodChain}
+                      >
+                        Switch Wallet to Robinhood Chain
+                      </button>
+                      <button
+                        className="action-button primary"
+                        type="button"
+                        style={{ padding: '8px 14px', fontSize: '0.82rem' }}
+                        onClick={() => {
+                          setSelectedNetwork('robinhood-mainnet')
+                          setIsEcosystemOpen(false)
+                          handleStartDeployment()
+                        }}
+                      >
+                        Deploy on Robinhood Mainnet →
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -1237,7 +1571,42 @@ function App() {
 
               {/* Step 2: Deployer Address */}
               <div className="form-group">
-                <label htmlFor="deployer-address">2. Deployer Wallet Address</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label htmlFor="deployer-address" style={{ margin: 0 }}>2. Deployer Wallet Address</label>
+                  {walletState.isConnected ? (
+                    <button
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#00f4a3',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => {
+                        if (walletState.address) setDeployerAddress(walletState.address)
+                      }}
+                    >
+                      Use Connected Wallet ({walletState.address?.slice(0, 6)}...{walletState.address?.slice(-4)})
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#00f0ff',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                      onClick={handleConnectWeb3}
+                    >
+                      Connect Injected Wallet
+                    </button>
+                  )}
+                </div>
                 <input
                   id="deployer-address"
                   className="form-input"
@@ -1326,7 +1695,7 @@ function App() {
                   </p>
                 </div>
               ) : (
-                <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                <div style={{ display: 'flex', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
                   <button
                     className="action-button primary"
                     type="button"
@@ -1334,6 +1703,15 @@ function App() {
                     onClick={handleExecuteDeploy}
                   >
                     {isDeploying ? 'Deploying to Chain...' : 'Simulate & Deploy Contract'}
+                  </button>
+                  <button
+                    className="action-button primary"
+                    type="button"
+                    disabled={!isChecklistComplete() || isDeploying}
+                    style={{ background: 'linear-gradient(135deg, #00f0ff, #7928ca)', color: '#ffffff' }}
+                    onClick={handleDeployWithWeb3}
+                  >
+                    {isDeploying ? 'Broadcasting...' : 'Deploy via Connected Wallet (Web3)'}
                   </button>
                   <a
                     className="action-button secondary"
@@ -1345,6 +1723,203 @@ function App() {
                   </a>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE MEME CANVAS STUDIO MODAL */}
+      {isMemeStudioOpen && (
+        <div className="modal-overlay" onClick={() => setIsMemeStudioOpen(false)}>
+          <div className="modal-dialog meme-studio-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Interactive Meme Canvas Studio 🎨</h3>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.88rem' }}>
+                  Create viral memes for {kit.tokenName} ({kit.primaryTicker}) with stickers, laser eyes, and custom impact captions.
+                </p>
+              </div>
+              <button className="modal-close" type="button" onClick={() => setIsMemeStudioOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="meme-layout-grid">
+              <div className="meme-canvas-box">
+                <canvas ref={memeCanvasRef} id="meme-canvas-preview" />
+                <div style={{ display: 'flex', gap: 10, width: '100%', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    className="action-button primary"
+                    type="button"
+                    onClick={() => {
+                      if (memeCanvasRef.current) {
+                        downloadCanvasMeme(
+                          memeCanvasRef.current,
+                          `${kit.primaryTicker.replace('$', '').toLowerCase()}-meme.png`,
+                        )
+                        showToast('Downloaded meme (.PNG)!')
+                      }
+                    }}
+                  >
+                    Download Meme (.PNG)
+                  </button>
+                  <button
+                    className="action-button secondary"
+                    type="button"
+                    onClick={handleRandomMemeCaption}
+                  >
+                    Random Caption 🎲
+                  </button>
+                </div>
+              </div>
+
+              <div className="meme-form-pane">
+                <div className="form-group">
+                  <label htmlFor="meme-top-text">Top Caption</label>
+                  <input
+                    id="meme-top-text"
+                    className="form-input"
+                    value={memeTopText}
+                    onChange={(e) => setMemeTopText(e.target.value)}
+                    placeholder="TOP TEXT..."
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="meme-bottom-text">Bottom Caption</label>
+                  <input
+                    id="meme-bottom-text"
+                    className="form-input"
+                    value={memeBottomText}
+                    onChange={(e) => setMemeBottomText(e.target.value)}
+                    placeholder="BOTTOM TEXT..."
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Sticker Overlay</label>
+                  <div className="sticker-selector">
+                    {(
+                      [
+                        { id: 'robinhood', label: 'Robinhood Ready 🏹' },
+                        { id: 'moon', label: 'To The Moon 🚀' },
+                        { id: 'diamond', label: 'Diamond Hands 💎' },
+                        { id: '100x', label: '100X Gem 🔥' },
+                        { id: 'none', label: 'None' },
+                      ] as const
+                    ).map((stk) => (
+                      <button
+                        key={stk.id}
+                        type="button"
+                        className={`sticker-pill ${memeSticker === stk.id ? 'active' : ''}`}
+                        onClick={() => setMemeSticker(stk.id)}
+                      >
+                        {stk.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', color: '#e2e8f0' }}>
+                    <input
+                      type="checkbox"
+                      checked={memeLaserEyes}
+                      onChange={(e) => setMemeLaserEyes(e.target.checked)}
+                    />
+                    <span>Laser Eyes Active 🔥</span>
+                  </label>
+                </div>
+
+                <div className="form-group">
+                  <label>Background Theme</label>
+                  <button
+                    className="action-button secondary"
+                    type="button"
+                    onClick={() => setMemeBgIndex((prev) => prev + 1)}
+                  >
+                    Cycle Cyberpunk Theme ({(memeBgIndex % BG_GRADIENTS.length) + 1} / {BG_GRADIENTS.length})
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 1-CLICK TOKEN LANDING PAGE MODAL */}
+      {isLandingModalOpen && (
+        <div className="modal-overlay" onClick={() => setIsLandingModalOpen(false)}>
+          <div className="modal-dialog wide landing-preview-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>1-Click Token Landing Page: {kit.tokenName}</h3>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.88rem' }}>
+                  Standalone responsive cyber website. Ready to deploy to Netlify, Vercel, or GitHub Pages.
+                </p>
+              </div>
+              <button className="modal-close" type="button" onClick={() => setIsLandingModalOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="landing-iframe-container">
+              <iframe
+                title="Landing Page Preview"
+                srcDoc={generateLandingPageHtml(kit, {
+                  contractAddress:
+                    deploymentRecord?.contractAddress || '0x42170bA5E8C9472DaE419Fa432170DEAdbeef123',
+                  networkName:
+                    selectedNetwork === 'robinhood-mainnet'
+                      ? 'Robinhood Chain Mainnet (42170)'
+                      : NETWORKS.find((n) => n.key === selectedNetwork)?.name || 'Multi-Chain',
+                })}
+              />
+            </div>
+
+            <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
+                Included in the 1-Click ZIP Raid Kit under <code>landing/index.html</code>.
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  className="action-button primary"
+                  type="button"
+                  onClick={() => {
+                    const html = generateLandingPageHtml(kit, {
+                      contractAddress:
+                        deploymentRecord?.contractAddress || '0x42170bA5E8C9472DaE419Fa432170DEAdbeef123',
+                      networkName:
+                        selectedNetwork === 'robinhood-mainnet'
+                          ? 'Robinhood Chain Mainnet (42170)'
+                          : NETWORKS.find((n) => n.key === selectedNetwork)?.name || 'Multi-Chain',
+                    })
+                    const blob = new Blob([html], { type: 'text/html' })
+                    downloadBlobAsFile(blob, `${kit.primaryTicker.replace('$', '').toLowerCase()}-landing.html`)
+                    showToast('Downloaded index.html!')
+                  }}
+                >
+                  Download index.html
+                </button>
+                <button
+                  className="action-button secondary"
+                  type="button"
+                  onClick={async () => {
+                    const html = generateLandingPageHtml(kit, {
+                      contractAddress:
+                        deploymentRecord?.contractAddress || '0x42170bA5E8C9472DaE419Fa432170DEAdbeef123',
+                      networkName:
+                        selectedNetwork === 'robinhood-mainnet'
+                          ? 'Robinhood Chain Mainnet (42170)'
+                          : NETWORKS.find((n) => n.key === selectedNetwork)?.name || 'Multi-Chain',
+                    })
+                    await navigator.clipboard?.writeText(html)
+                    showToast('Copied HTML code to clipboard!')
+                  }}
+                >
+                  Copy HTML
+                </button>
+              </div>
             </div>
           </div>
         </div>

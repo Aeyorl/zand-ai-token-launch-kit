@@ -1020,3 +1020,122 @@ textarea:focus {
   line-height: 1.5;
   border-left: 3px solid #00f4a3;
 }
+
+/* Web3 & Wallet Controls */
+.wallet-badge-connected {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: rgba(0, 244, 163, 0.12);
+  border: 1px solid #00f4a3;
+  color: #00f4a3;
+}
+
+.wallet-badge-connected .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00f4a3;
+  box-shadow: 0 0 10px #00f4a3;
+  animation: pulse-dot 2s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Meme Studio Canvas */
+.meme-studio-modal {
+  max-width: 900px;
+}
+
+.meme-layout-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .meme-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.meme-canvas-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: #060913;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.meme-canvas-box canvas {
+  width: 100%;
+  max-width: 440px;
+  aspect-ratio: 1 / 1;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+.meme-form-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sticker-selector {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sticker-pill {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.sticker-pill:hover,
+.sticker-pill.active {
+  background: #7928ca;
+  border-color: #d946ef;
+  color: #ffffff;
+}
+
+/* Landing Page Preview Modal */
+.landing-preview-modal {
+  max-width: 980px;
+}
+
+.landing-iframe-container {
+  width: 100%;
+  height: 520px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid #1e293b;
+  background: #090b10;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+.landing-iframe-container iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
