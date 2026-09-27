@@ -13,4 +13,26 @@ describe('App', () => {
     expect(html).toContain('Wall Street')
     expect(html).toContain('Copy brand markdown')
   })
+
+  it('renders full SaaS navigation and actions for auth, studio, and deployment', () => {
+    const html = renderToStaticMarkup(<App />)
+
+    // SaaS Navbar actions
+    expect(html).toContain('Sign In')
+    expect(html).toContain('Pricing')
+    expect(html).toContain('Deploy Token')
+
+    // Creative studio controls
+    expect(html).toContain('Creative Studio')
+    expect(html).toContain('Logo &amp; Banner Generator')
+    expect(html).toContain('Logo (1:1)')
+    expect(html).toContain('Banner (3:1)')
+    expect(html).toContain('Generate with AI')
+    expect(html).toContain('Download SVG')
+
+    // Cloud and deploy action buttons
+    expect(html).toContain('Save to Cloud')
+    expect(html).toContain('Deploy Contract')
+    expect(html).toContain('Deploy on Base')
+  })
 })

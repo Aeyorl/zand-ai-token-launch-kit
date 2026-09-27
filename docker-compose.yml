@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  zand-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3001:3001'
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - CORS_ORIGIN=*
+      - APP_URL=http://localhost:3001
+      - DATABASE_FILE=/app/data/db.json
+      - JWT_SECRET=change-this-in-production-to-a-secure-random-key
+      - AI_PROVIDER=fallback
+      # - AI_API_KEY=sk-...
+      # - STRIPE_SECRET_KEY=sk_test_...
+      # - STRIPE_WEBHOOK_SECRET=whsec_...
+    volumes:
+      - zand_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  zand_data:
