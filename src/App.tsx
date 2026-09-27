@@ -28,6 +28,7 @@ import { generateVerificationPackage } from './verification'
 import { DEFAULT_ALLOCATIONS, generateVestingSolidityContract, generateVestingScheduleSvg } from './vesting'
 import { generateListingPackage } from './listingKit'
 import { generateLocalizedManifestos } from './localization'
+import { auditSmartContract } from './securityAuditor'
 
 const examples = [
   'Angry billionaire cat that hates Wall Street.',
@@ -151,7 +152,7 @@ function App() {
   // Option 2 & 3: Ecosystems, Robinhood, Solana, Telegram Bot & Raid Kit
   const [isEcosystemOpen, setIsEcosystemOpen] = useState(false)
   const [ecosystemTab, setEcosystemTab] = useState<
-    'ethereum' | 'solana' | 'robinhood' | 'verification' | 'vesting' | 'listings' | 'telegram'
+    'ethereum' | 'solana' | 'robinhood' | 'verification' | 'vesting' | 'listings' | 'security' | 'telegram'
   >('ethereum')
   const [liquidityPlan, setLiquidityPlan] = useState<LiquidityPlan | null>(null)
   const [robinhoodAudit, setRobinhoodAudit] = useState<RobinhoodAudit | null>(null)
@@ -548,7 +549,7 @@ function App() {
 
   // Option 3: Ecosystems (Ethereum, Solana, Robinhood, Telegram, Verification, Vesting, Listings)
   const handleOpenEcosystems = async (
-    tab: 'ethereum' | 'solana' | 'robinhood' | 'verification' | 'vesting' | 'listings' | 'telegram' = 'ethereum',
+    tab: 'ethereum' | 'solana' | 'robinhood' | 'verification' | 'vesting' | 'listings' | 'security' | 'telegram' = 'ethereum',
   ) => {
     setEcosystemTab(tab)
     setIsEcosystemOpen(true)
@@ -695,6 +696,9 @@ function App() {
             </button>
             <button className="secondary-link" type="button" onClick={() => handleOpenEcosystems('robinhood')}>
               Robinhood &amp; Solana
+            </button>
+            <button className="secondary-link" type="button" onClick={() => handleOpenEcosystems('security')}>
+              Security Audit
             </button>
             <button className="secondary-link" type="button" onClick={handleStartDeployment}>
               Deploy Token
@@ -1147,6 +1151,13 @@ function App() {
                 onClick={() => setEcosystemTab('listings')}
               >
                 Exchange Listings
+              </button>
+              <button
+                className={`tab-btn ${ecosystemTab === 'security' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setEcosystemTab('security')}
+              >
+                Security &amp; Anti-Rug Audit
               </button>
               <button
                 className={`tab-btn ${ecosystemTab === 'telegram' ? 'active' : ''}`}
@@ -1602,6 +1613,100 @@ function App() {
 
                       <div className="code-viewer" style={{ maxHeight: 220, overflowY: 'auto', fontSize: '0.8rem' }}>
                         {pkg.coinGeckoMarkdown}
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
+            {/* TAB 8: SECURITY AUDIT & ANTI-RUG */}
+            {ecosystemTab === 'security' && (
+              <div>
+                {(() => {
+                  const auditReport = auditSmartContract(
+                    kit,
+                    deploymentPlan?.solidity || '',
+                    deploymentRecord?.contractAddress || '0x42170bA5E8C9472DaE419Fa432170DEAdbeef123',
+                  )
+                  return (
+                    <div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '16px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          borderRadius: 8,
+                          border: `1px solid ${auditReport.badgeColor}44`,
+                          marginBottom: 16,
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>Safety Rating &amp; Anti-Rug Score</div>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: auditReport.badgeColor, marginTop: 4 }}>
+                            {auditReport.rating} ({auditReport.score}/100)
+                          </div>
+                        </div>
+                        <button
+                          className="action-button primary"
+                          type="button"
+                          onClick={async () => {
+                            await navigator.clipboard?.writeText(auditReport.auditMarkdown)
+                            showToast('Copied Security Audit Report Markdown!')
+                          }}
+                        >
+                          Copy Audit Report (.MD)
+                        </button>
+                      </div>
+
+                      <p style={{ color: '#cbd5e1', fontSize: '0.9rem', marginBottom: 14 }}>
+                        {auditReport.summary}
+                      </p>
+
+                      <div style={{ display: 'grid', gap: 10, marginBottom: 16 }}>
+                        {auditReport.checks.map((check) => (
+                          <div
+                            key={check.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'flex-start',
+                              justifyContent: 'space-between',
+                              padding: '12px 14px',
+                              background: 'rgba(0, 0, 0, 0.25)',
+                              borderRadius: 6,
+                              border: check.passed ? '1px solid rgba(0, 244, 163, 0.2)' : '1px solid rgba(239, 68, 68, 0.3)',
+                            }}
+                          >
+                            <div style={{ paddingRight: 12 }}>
+                              <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.95rem' }}>
+                                {check.passed ? '✅ ' : '❌ '} {check.name}
+                              </div>
+                              <div style={{ color: '#94a3b8', fontSize: '0.82rem', marginTop: 4 }}>
+                                {check.details}
+                              </div>
+                            </div>
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                padding: '3px 8px',
+                                borderRadius: 4,
+                                textTransform: 'uppercase',
+                                background: check.passed ? 'rgba(0, 244, 163, 0.15)' : 'rgba(239, 68, 68, 0.2)',
+                                color: check.passed ? '#00f4a3' : '#ef4444',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {check.severity}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="code-viewer" style={{ maxHeight: 220, overflowY: 'auto', fontSize: '0.8rem' }}>
+                        {auditReport.auditMarkdown}
                       </div>
                     </div>
                   )

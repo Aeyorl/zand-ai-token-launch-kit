@@ -6,6 +6,7 @@ import { DEFAULT_ALLOCATIONS, generateVestingSolidityContract } from './vesting'
 import { generateListingPackage } from './listingKit'
 
 import { generateLocalizedManifestos } from './localization'
+import { auditSmartContract } from './securityAuditor'
 
 export interface RaidKitFileStructure {
   kit: LaunchKit
@@ -250,6 +251,13 @@ console.log("Starting ${kit.tokenName} Community Bot...");
       listingsFolder.file('coingecko_application.md', listingPkg.coinGeckoMarkdown)
       listingsFolder.file('coinmarketcap_application.md', listingPkg.coinMarketCapMarkdown)
     }
+  }
+
+  // 7. Security Audit Folder
+  const auditFolder = zip.folder('audit')
+  if (auditFolder) {
+    const report = auditSmartContract(kit, data.solidityCode, activeContract)
+    auditFolder.file('SAFETY_AUDIT_REPORT.md', report.auditMarkdown)
   }
 
   return zip.generateAsync({ type: 'blob' })

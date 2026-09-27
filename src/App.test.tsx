@@ -56,11 +56,12 @@ describe('App', () => {
     expect(html).toContain('Open Interactive Meme Studio 🎨')
   })
 
-  it('renders contract verification, vesting engine, and exchange listing package triggers', () => {
+  it('renders contract verification, vesting engine, exchange listing, and security audit triggers', () => {
     const html = renderToStaticMarkup(<App />)
 
     expect(html).toContain('Ecosystems &amp; DEX')
     expect(html).toContain('Raid Kit (.ZIP)')
+    expect(html).toContain('Security Audit')
   })
 
   it('renders multi-language community raid manifesto localization', () => {
