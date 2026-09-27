@@ -2,7 +2,7 @@
 
 **Describe a meme. AI builds the brand.**
 
-ZAND AI is a polished React prototype for an AI-powered meme-token launch kit generator. A user enters a concept like:
+ZAND AI is a polished React + TypeScript product prototype for an AI-powered meme-token launch kit generator. It now includes the first production-layer backend core and offline API contracts for auth, saved projects, AI generation fallback, image assets, checkout links, and token deployment planning. A user enters a concept like:
 
 > Angry billionaire cat that hates Wall Street.
 
@@ -30,8 +30,22 @@ Most meme launches fail because they ship with an empty Telegram, weak lore, sto
 - React
 - TypeScript
 - Vite
-- Vitest + Testing Library
+- Vitest
+- Express-ready backend core
+- Offline API fallback for demos without provider keys
+- Stripe checkout payload scaffolding
+- Token deployment plan generator
 - Pure CSS, no UI framework
+
+## Latest production-layer update
+
+This repo includes test-covered scaffolding for the next SaaS layer:
+
+- `server/core.ts` — user sessions, in-memory project storage, AI fallback generation, SVG image asset generation, checkout session payloads, and ERC20 deployment plan generation.
+- `src/api.ts` — frontend-safe offline product API for auth, generated kits, saved projects, checkout, and deployment preparation.
+- Contract tests covering backend and frontend product flows.
+
+Real provider keys are intentionally not committed. Production deployments should connect AI/image/payment/token-deployment providers through environment variables and server-side secrets.
 
 ## Local development
 
