@@ -55,4 +55,11 @@ describe('App', () => {
     expect(html).toContain('Connect Web3')
     expect(html).toContain('Open Interactive Meme Studio 🎨')
   })
+
+  it('renders contract verification, vesting engine, and exchange listing package triggers', () => {
+    const html = renderToStaticMarkup(<App />)
+
+    expect(html).toContain('Ecosystems &amp; DEX')
+    expect(html).toContain('Raid Kit (.ZIP)')
+  })
 })

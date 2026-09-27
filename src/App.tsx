@@ -24,6 +24,9 @@ import {
   switchOrAddChain,
   deployContractViaInjectedWallet,
 } from './web3'
+import { generateVerificationPackage } from './verification'
+import { DEFAULT_ALLOCATIONS, generateVestingSolidityContract, generateVestingScheduleSvg } from './vesting'
+import { generateListingPackage } from './listingKit'
 
 const examples = [
   'Angry billionaire cat that hates Wall Street.',
@@ -143,7 +146,9 @@ function App() {
 
   // Option 2 & 3: Ecosystems, Robinhood, Solana, Telegram Bot & Raid Kit
   const [isEcosystemOpen, setIsEcosystemOpen] = useState(false)
-  const [ecosystemTab, setEcosystemTab] = useState<'ethereum' | 'solana' | 'robinhood' | 'telegram'>('ethereum')
+  const [ecosystemTab, setEcosystemTab] = useState<
+    'ethereum' | 'solana' | 'robinhood' | 'verification' | 'vesting' | 'listings' | 'telegram'
+  >('ethereum')
   const [liquidityPlan, setLiquidityPlan] = useState<LiquidityPlan | null>(null)
   const [robinhoodAudit, setRobinhoodAudit] = useState<RobinhoodAudit | null>(null)
   const [solanaConfig, setSolanaConfig] = useState<SolanaConfig | null>(null)
@@ -537,8 +542,10 @@ function App() {
     }
   }
 
-  // Option 3: Ecosystems (Ethereum, Solana, Robinhood, Telegram)
-  const handleOpenEcosystems = async (tab: 'ethereum' | 'solana' | 'robinhood' | 'telegram' = 'ethereum') => {
+  // Option 3: Ecosystems (Ethereum, Solana, Robinhood, Telegram, Verification, Vesting, Listings)
+  const handleOpenEcosystems = async (
+    tab: 'ethereum' | 'solana' | 'robinhood' | 'verification' | 'vesting' | 'listings' | 'telegram' = 'ethereum',
+  ) => {
     setEcosystemTab(tab)
     setIsEcosystemOpen(true)
     const [liq, audit, sol, bot] = await Promise.all([
@@ -1034,6 +1041,27 @@ function App() {
                 Robinhood Mainnet (Chain ID 42170)
               </button>
               <button
+                className={`tab-btn ${ecosystemTab === 'verification' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setEcosystemTab('verification')}
+              >
+                Contract Verification
+              </button>
+              <button
+                className={`tab-btn ${ecosystemTab === 'vesting' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setEcosystemTab('vesting')}
+              >
+                Tokenomics &amp; Vesting
+              </button>
+              <button
+                className={`tab-btn ${ecosystemTab === 'listings' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setEcosystemTab('listings')}
+              >
+                Exchange Listings
+              </button>
+              <button
                 className={`tab-btn ${ecosystemTab === 'telegram' ? 'active' : ''}`}
                 type="button"
                 onClick={() => setEcosystemTab('telegram')}
@@ -1317,6 +1345,180 @@ function App() {
                     Download Complete Raid Package (.ZIP)
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* TAB 5: CONTRACT VERIFICATION */}
+            {ecosystemTab === 'verification' && (
+              <div>
+                <p style={{ color: '#cbd5e1', fontSize: '0.9rem', marginBottom: 14 }}>
+                  Verify <strong>{kit.tokenName}</strong> source code on Etherscan, Basescan, Blockscout, and Robinhood Explorer with Standard JSON Input:
+                </p>
+
+                {(() => {
+                  const verPkg = generateVerificationPackage(
+                    kit,
+                    deploymentRecord?.contractAddress || '0x42170bA5E8C9472DaE419Fa432170DEAdbeef123',
+                    deploymentPlan?.solidity,
+                    selectedNetwork,
+                  )
+                  return (
+                    <div>
+                      <div className="metric-card-grid" style={{ marginBottom: 16 }}>
+                        <div className="metric-card">
+                          <span>Compiler</span>
+                          <strong>{verPkg.compilerVersion}</strong>
+                        </div>
+                        <div className="metric-card">
+                          <span>Runs (Optimizer)</span>
+                          <strong style={{ color: '#00f4a3' }}>{verPkg.optimizationRuns}</strong>
+                        </div>
+                        <div className="metric-card">
+                          <span>Target Network</span>
+                          <strong style={{ color: '#38bdf8' }}>{selectedNetwork}</strong>
+                        </div>
+                      </div>
+
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <strong style={{ color: '#e2e8f0', fontSize: '0.88rem' }}>Foundry 1-Click Verification Command:</strong>
+                          <button
+                            className="action-button secondary"
+                            type="button"
+                            style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                            onClick={async () => {
+                              await navigator.clipboard?.writeText(verPkg.foundryVerifyCommand)
+                              showToast('Copied Foundry verify command!')
+                            }}
+                          >
+                            Copy Command
+                          </button>
+                        </div>
+                        <div className="code-viewer" style={{ fontSize: '0.8rem' }}>{verPkg.foundryVerifyCommand}</div>
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                          <strong style={{ color: '#e2e8f0', fontSize: '0.88rem' }}>Standard JSON Input (for Explorer Manual Upload):</strong>
+                          <button
+                            className="action-button primary"
+                            type="button"
+                            style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                            onClick={() => {
+                              const blob = new Blob([verPkg.standardJsonInput], { type: 'application/json' })
+                              downloadBlobAsFile(blob, `${kit.tokenName.toLowerCase()}-standard-json.json`)
+                              showToast('Downloaded standard-json-input.json!')
+                            }}
+                          >
+                            Download standard-json.json
+                          </button>
+                        </div>
+                        <div className="code-viewer" style={{ maxHeight: 180, overflowY: 'auto', fontSize: '0.78rem' }}>
+                          {verPkg.standardJsonInput}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
+
+            {/* TAB 6: TOKENOMICS & VESTING */}
+            {ecosystemTab === 'vesting' && (
+              <div>
+                <p style={{ color: '#cbd5e1', fontSize: '0.9rem', marginBottom: 14 }}>
+                  Audited multi-schedule token release curve and non-custodial <code>TokenVesting.sol</code> vault for <strong>{kit.tokenName}</strong>:
+                </p>
+
+                <div
+                  style={{ width: '100%', maxWidth: 440, margin: '0 auto 20px', borderRadius: 16, overflow: 'hidden' }}
+                  dangerouslySetInnerHTML={{ __html: generateVestingScheduleSvg(DEFAULT_ALLOCATIONS) }}
+                />
+
+                <div className="checklist-group" style={{ marginBottom: 16 }}>
+                  <strong style={{ color: '#ffffff', fontSize: '0.9rem' }}>Allocation Table:</strong>
+                  {DEFAULT_ALLOCATIONS.map((alloc) => (
+                    <div key={alloc.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.06)', fontSize: '0.85rem' }}>
+                      <span style={{ color: '#ffffff', fontWeight: 700 }}>{alloc.name} ({alloc.percentage}%)</span>
+                      <span style={{ color: '#94a3b8' }}>Recipient: {alloc.recipient}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <strong style={{ color: '#e2e8f0', fontSize: '0.88rem' }}>Solidity Smart Contract (TokenVesting.sol):</strong>
+                  <button
+                    className="action-button secondary"
+                    type="button"
+                    style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                    onClick={async () => {
+                      await navigator.clipboard?.writeText(generateVestingSolidityContract(kit))
+                      showToast('Copied TokenVesting.sol!')
+                    }}
+                  >
+                    Copy Solidity
+                  </button>
+                </div>
+                <div className="code-viewer" style={{ maxHeight: 180, overflowY: 'auto', fontSize: '0.78rem' }}>
+                  {generateVestingSolidityContract(kit)}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 7: EXCHANGE LISTINGS */}
+            {ecosystemTab === 'listings' && (
+              <div>
+                <p style={{ color: '#cbd5e1', fontSize: '0.9rem', marginBottom: 14 }}>
+                  Pre-filled official listing submission data for <strong>DexScreener Enhanced</strong>, <strong>CoinGecko</strong>, and <strong>CoinMarketCap</strong>:
+                </p>
+
+                {(() => {
+                  const pkg = generateListingPackage(
+                    kit,
+                    deploymentRecord?.contractAddress || '0x42170bA5E8C9472DaE419Fa432170DEAdbeef123',
+                    selectedNetwork === 'robinhood-mainnet' ? 'Robinhood Chain Mainnet (42170)' : 'Base Mainnet',
+                  )
+                  return (
+                    <div>
+                      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                        <button
+                          className="action-button primary"
+                          type="button"
+                          onClick={async () => {
+                            await navigator.clipboard?.writeText(pkg.dexScreenerJson)
+                            showToast('Copied DexScreener Enhanced JSON profile!')
+                          }}
+                        >
+                          Copy DexScreener Profile JSON
+                        </button>
+                        <button
+                          className="action-button secondary"
+                          type="button"
+                          onClick={async () => {
+                            await navigator.clipboard?.writeText(pkg.coinGeckoMarkdown)
+                            showToast('Copied CoinGecko Application Markdown!')
+                          }}
+                        >
+                          Copy CoinGecko Form Data
+                        </button>
+                        <button
+                          className="action-button secondary"
+                          type="button"
+                          onClick={async () => {
+                            await navigator.clipboard?.writeText(pkg.coinMarketCapMarkdown)
+                            showToast('Copied CoinMarketCap Questionnaire!')
+                          }}
+                        >
+                          Copy CMC Form Data
+                        </button>
+                      </div>
+
+                      <div className="code-viewer" style={{ maxHeight: 220, overflowY: 'auto', fontSize: '0.8rem' }}>
+                        {pkg.coinGeckoMarkdown}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             )}
           </div>
