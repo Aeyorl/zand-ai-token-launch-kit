@@ -302,4 +302,70 @@ describe('Full Backend API Integration Suite', () => {
     const historyData = await historyRes.json()
     expect(historyData.deployments.length).toBe(1)
   })
+
+  it('supports multi-chain liquidity planning, Robinhood readiness audit, and Telegram community bot generation', async () => {
+    const genRes = await fetch(`${baseUrl}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'Angry billionaire cat that hates Wall Street.' }),
+    })
+    const { kit } = await genRes.json()
+
+    // 1. Ethereum & Solana Liquidity Plans
+    const ethPlanRes = await fetch(`${baseUrl}/api/ecosystems/liquidity-plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kit, chain: 'ethereum', initialEthOrSol: 5 }),
+    })
+    expect(ethPlanRes.status).toBe(200)
+    const ethPlanData = await ethPlanRes.json()
+    expect(ethPlanData.plan.dexName).toContain('Uniswap')
+    expect(ethPlanData.plan.pairWith).toBe('WETH')
+    expect(ethPlanData.plan.estimatedStartingPriceUsd).toMatch(/^\$/)
+
+    const solPlanRes = await fetch(`${baseUrl}/api/ecosystems/liquidity-plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kit, chain: 'solana', initialEthOrSol: 20 }),
+    })
+    expect(solPlanRes.status).toBe(200)
+    const solPlanData = await solPlanRes.json()
+    expect(solPlanData.plan.dexName).toContain('Raydium')
+    expect(solPlanData.plan.pairWith).toBe('SOL')
+
+    // 2. Robinhood Listing Readiness Audit
+    const auditRes = await fetch(`${baseUrl}/api/ecosystems/robinhood-audit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kit }),
+    })
+    expect(auditRes.status).toBe(200)
+    const { audit } = await auditRes.json()
+    expect(audit.score).toBeGreaterThanOrEqual(75)
+    expect(audit.metrics.length).toBeGreaterThan(2)
+    expect(audit.robinhoodConnectConfig.suggestedFiatRamp).toBeTruthy()
+
+    // 3. Solana SPL Launch Config
+    const solConfigRes = await fetch(`${baseUrl}/api/ecosystems/solana-config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kit }),
+    })
+    expect(solConfigRes.status).toBe(200)
+    const solConfigData = await solConfigRes.json()
+    expect(solConfigData.config.decimals).toBe(9)
+    expect(solConfigData.config.cliCommands.some((c: string) => c.includes('spl-token'))).toBe(true)
+
+    // 4. Telegram Community Bot Package
+    const botRes = await fetch(`${baseUrl}/api/bot/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kit, baseAddress: '0x123', solanaMint: 'SOL123' }),
+    })
+    expect(botRes.status).toBe(200)
+    const { botPackage } = await botRes.json()
+    expect(botPackage.code).toContain('telegramRequest')
+    expect(botPackage.slashCommands.length).toBeGreaterThanOrEqual(5)
+    expect(botPackage.slashCommands.some((s: { command: string }) => s.command === '/buy')).toBe(true)
+  })
 })

@@ -4,11 +4,16 @@ import {
   type DeploymentPlan,
   type DeploymentRecord,
   type GeneratedImage,
+  type LiquidityPlan,
   productApi,
   type ProductProject,
   type ProductUser,
+  type RobinhoodAudit,
+  type SolanaConfig,
+  type TelegramBotBundle,
 } from './api'
 import { exportLaunchKitMarkdown, generateLaunchKit, type LaunchKit } from './brandGenerator'
+import { downloadBlobAsFile, generateRaidKitZip } from './raidKit'
 
 const examples = [
   'Angry billionaire cat that hates Wall Street.',
@@ -61,6 +66,16 @@ function App() {
   const [checklist, setChecklist] = useState<Record<number, boolean>>({})
   const [deploymentRecord, setDeploymentRecord] = useState<DeploymentRecord | null>(null)
   const [isDeploying, setIsDeploying] = useState(false)
+
+  // Option 2 & 3: Ecosystems, Robinhood, Solana, Telegram Bot & Raid Kit
+  const [isEcosystemOpen, setIsEcosystemOpen] = useState(false)
+  const [ecosystemTab, setEcosystemTab] = useState<'ethereum' | 'solana' | 'robinhood' | 'telegram'>('ethereum')
+  const [liquidityPlan, setLiquidityPlan] = useState<LiquidityPlan | null>(null)
+  const [robinhoodAudit, setRobinhoodAudit] = useState<RobinhoodAudit | null>(null)
+  const [solanaConfig, setSolanaConfig] = useState<SolanaConfig | null>(null)
+  const [telegramBot, setTelegramBot] = useState<TelegramBotBundle | null>(null)
+  const [selectedBotCommand, setSelectedBotCommand] = useState<string>('/buy')
+  const [isDownloadingRaidKit, setIsDownloadingRaidKit] = useState(false)
 
   // Kit calculation
   const kit: LaunchKit = useMemo(() => generateLaunchKit(activePrompt), [activePrompt])
@@ -239,7 +254,6 @@ function App() {
     if (!deploymentPlan) return
     setIsDeploying(true)
     try {
-      // Simulate on-chain deployment
       const fakeAddress = `0x${crypto.randomUUID().replace(/-/g, '').slice(0, 40)}`
       const fakeTxHash = `0x${crypto.randomUUID().replace(/-/g, '')}${crypto.randomUUID().replace(/-/g, '')}`
 
@@ -271,6 +285,49 @@ function App() {
     }
   }
 
+  // Option 2: 1-Click ZIP Raid Kit Download
+  const handleDownloadRaidKit = async () => {
+    setIsDownloadingRaidKit(true)
+    showToast('Packaging full Raid Kit ZIP...')
+    try {
+      const plan =
+        deploymentPlan ||
+        (await productApi.prepareTokenDeployment(kit, selectedNetwork, deployerAddress))
+      const blob = await generateRaidKitZip({
+        kit,
+        logoSvg: activeImage?.svgContent,
+        bannerSvg: activeImage?.svgContent,
+        solidityCode: plan.solidity,
+        baseContractAddress: deploymentRecord?.contractAddress || '0x_BASE_CONTRACT_ADDRESS',
+        ethereumContractAddress: '0x_ETHEREUM_CONTRACT_ADDRESS',
+        solanaMintAddress: 'SOL_SPL_MINT_ADDRESS',
+      })
+      const filename = `${kit.primaryTicker.replace('$', '').toLowerCase()}-raid-kit.zip`
+      downloadBlobAsFile(blob, filename)
+      showToast(`📦 Downloaded ${filename}!`)
+    } catch {
+      showToast('Failed to build raid kit zip')
+    } finally {
+      setIsDownloadingRaidKit(false)
+    }
+  }
+
+  // Option 3: Ecosystems (Ethereum, Solana, Robinhood, Telegram)
+  const handleOpenEcosystems = async (tab: 'ethereum' | 'solana' | 'robinhood' | 'telegram' = 'ethereum') => {
+    setEcosystemTab(tab)
+    setIsEcosystemOpen(true)
+    const [liq, audit, sol, bot] = await Promise.all([
+      productApi.getLiquidityPlan(kit, tab === 'solana' ? 'solana' : tab === 'ethereum' ? 'ethereum' : 'base'),
+      productApi.getRobinhoodAudit(kit),
+      productApi.getSolanaConfig(kit),
+      productApi.getTelegramBotPackage(kit),
+    ])
+    setLiquidityPlan(liq)
+    setRobinhoodAudit(audit)
+    setSolanaConfig(sol)
+    setTelegramBot(bot)
+  }
+
   return (
     <main className="app-shell">
       {/* Navigation */}
@@ -285,9 +342,25 @@ function App() {
           <a href="#kit">Launch Kit</a>
           <a href="#studio">Studio</a>
           <a href="#platform">Platform Token</a>
+          <button
+            type="button"
+            className="nav-button"
+            style={{ padding: '6px 12px' }}
+            onClick={() => handleOpenEcosystems('ethereum')}
+          >
+            Ecosystems &amp; DEX
+          </button>
         </div>
 
         <div className="nav-actions">
+          <button
+            className="nav-button primary"
+            type="button"
+            onClick={handleDownloadRaidKit}
+            disabled={isDownloadingRaidKit}
+          >
+            {isDownloadingRaidKit ? 'Zipping...' : 'Raid Kit (.ZIP)'}
+          </button>
           {user ? (
             <>
               <span className={`tier-badge ${user.tier}`}>{user.tier}</span>
@@ -334,12 +407,15 @@ function App() {
             <a className="primary-link" href="#generator">
               Generate Launch Kit
             </a>
+            <button className="action-button primary" type="button" onClick={handleDownloadRaidKit}>
+              Download Raid Kit (.ZIP)
+            </button>
+            <button className="secondary-link" type="button" onClick={() => handleOpenEcosystems('robinhood')}>
+              Robinhood &amp; Solana
+            </button>
             <button className="secondary-link" type="button" onClick={handleStartDeployment}>
               Deploy Token
             </button>
-            <a className="secondary-link" href="#platform">
-              See platform thesis
-            </a>
           </div>
         </div>
 
@@ -394,6 +470,13 @@ function App() {
           >
             {isSavingProject ? 'Saving...' : 'Save to Cloud'}
           </button>
+          <button
+            className="action-button secondary"
+            type="button"
+            onClick={() => handleOpenEcosystems('ethereum')}
+          >
+            Liquidity &amp; Robinhood
+          </button>
           <button className="action-button secondary" type="button" onClick={handleStartDeployment}>
             Deploy Contract
           </button>
@@ -409,6 +492,16 @@ function App() {
             <p>Everything a meme launch needs before it goes live.</p>
           </div>
           <div className="heading-actions">
+            <button className="action-button secondary" type="button" onClick={handleDownloadRaidKit}>
+              Raid Kit (.ZIP)
+            </button>
+            <button
+              className="action-button secondary"
+              type="button"
+              onClick={() => handleOpenEcosystems('robinhood')}
+            >
+              Robinhood Readiness
+            </button>
             <button className="action-button secondary" type="button" onClick={handleSaveProject}>
               Save Kit
             </button>
@@ -513,6 +606,9 @@ function App() {
           <button type="button" onClick={handleCopy}>
             Copy brand markdown
           </button>
+          <button type="button" onClick={handleDownloadRaidKit}>
+            Download Full Raid Package (.ZIP)
+          </button>
           {copied && <span role="status">Copied launch kit.</span>}
         </article>
       </section>
@@ -522,7 +618,7 @@ function App() {
         <div className="studio-header">
           <div>
             <p className="eyebrow">Creative Studio</p>
-            <h2>Logo & Banner Generator</h2>
+            <h2>Logo &amp; Banner Generator</h2>
             <p>Generate high-resolution vector and AI brand artwork.</p>
           </div>
           <div className="tab-group">
@@ -607,6 +703,256 @@ function App() {
           </p>
         </div>
       </section>
+
+      {/* ---------------- OPTION 2 & 3: ECOSYSTEMS & LIQUIDITY MODAL ---------------- */}
+      {isEcosystemOpen && (
+        <div className="modal-overlay" onClick={() => setIsEcosystemOpen(false)}>
+          <div className="modal-dialog wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <h3>Multi-Chain Liquidity &amp; Robinhood Gateway</h3>
+                <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.88rem' }}>
+                  Deploy and scale {kit.tokenName} across Ethereum, Solana, Base, and retail onramps.
+                </p>
+              </div>
+              <button className="modal-close" type="button" onClick={() => setIsEcosystemOpen(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="ecosystem-tabs">
+              <button
+                className={`tab-btn ${ecosystemTab === 'ethereum' ? 'active' : ''}`}
+                type="button"
+                onClick={() => handleOpenEcosystems('ethereum')}
+              >
+                Ethereum &amp; Uniswap V3
+              </button>
+              <button
+                className={`tab-btn ${ecosystemTab === 'solana' ? 'active' : ''}`}
+                type="button"
+                onClick={() => handleOpenEcosystems('solana')}
+              >
+                Solana (Raydium &amp; SPL)
+              </button>
+              <button
+                className={`tab-btn ${ecosystemTab === 'robinhood' ? 'active' : ''}`}
+                type="button"
+                onClick={() => handleOpenEcosystems('robinhood')}
+              >
+                Robinhood Readiness (95%)
+              </button>
+              <button
+                className={`tab-btn ${ecosystemTab === 'telegram' ? 'active' : ''}`}
+                type="button"
+                onClick={() => setEcosystemTab('telegram')}
+              >
+                Telegram Community Bot
+              </button>
+            </div>
+
+            {/* TAB 1: ETHEREUM & UNISWAP */}
+            {ecosystemTab === 'ethereum' && liquidityPlan && (
+              <div>
+                <div className="metric-card-grid">
+                  <div className="metric-card">
+                    <span>Target DEX</span>
+                    <strong>{liquidityPlan.dexName}</strong>
+                  </div>
+                  <div className="metric-card">
+                    <span>Pair Asset</span>
+                    <strong>{liquidityPlan.pairWith}</strong>
+                  </div>
+                  <div className="metric-card">
+                    <span>Est. Starting Price</span>
+                    <strong style={{ color: '#00f4a3' }}>{liquidityPlan.estimatedStartingPriceUsd}</strong>
+                  </div>
+                  <div className="metric-card">
+                    <span>Initial Market Cap</span>
+                    <strong style={{ color: '#38bdf8' }}>{liquidityPlan.estimatedInitialMarketCapUsd}</strong>
+                  </div>
+                </div>
+
+                <div className="code-viewer" style={{ marginBottom: 16 }}>
+                  {liquidityPlan.poolCreationSnippet}
+                </div>
+
+                <div className="checklist-group">
+                  <strong style={{ color: '#ffffff', fontSize: '0.9rem' }}>
+                    Liquidity Seeding &amp; Lock Checklist:
+                  </strong>
+                  {liquidityPlan.instructions.map((step) => (
+                    <div key={step} style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>
+                      {step}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: 20, display: 'flex', gap: 12 }}>
+                  <a className="action-button primary" href={liquidityPlan.dexUrl} target="_blank" rel="noreferrer">
+                    Open Uniswap Pool Creator ↗
+                  </a>
+                  <button className="action-button secondary" type="button" onClick={handleDownloadRaidKit}>
+                    Download Complete Liquidity Package (.ZIP)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: SOLANA (RAYDIUM & SPL) */}
+            {ecosystemTab === 'solana' && solanaConfig && (
+              <div>
+                <p style={{ color: '#cbd5e1', fontSize: '0.9rem', marginBottom: 14 }}>
+                  Deploy <strong>{kit.tokenName}</strong> on Solana with Token-2022 and seed Raydium CPMM:
+                </p>
+
+                <div className="code-viewer" style={{ marginBottom: 16 }}>
+                  {solanaConfig.cliCommands.join('\n')}
+                </div>
+
+                <div className="metric-card" style={{ marginBottom: 16 }}>
+                  <span>Pump.fun 1-Click Launch Metadata</span>
+                  <strong>{solanaConfig.pumpFunInstructions.title}</strong>
+                  <p style={{ margin: '6px 0 0', fontSize: '0.85rem', color: '#94a3b8' }}>
+                    {solanaConfig.pumpFunInstructions.description}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button
+                    className="action-button primary"
+                    type="button"
+                    onClick={async () => {
+                      await navigator.clipboard?.writeText(solanaConfig.cliCommands.join('\n'))
+                      showToast('Copied Solana CLI script!')
+                    }}
+                  >
+                    Copy Solana CLI Script
+                  </button>
+                  <a className="action-button secondary" href="https://raydium.io/liquidity/create/" target="_blank" rel="noreferrer">
+                    Open Raydium DEX ↗
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: ROBINHOOD READINESS */}
+            {ecosystemTab === 'robinhood' && robinhoodAudit && (
+              <div>
+                <div className="score-gauge-box">
+                  <div>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: '#64748b', textTransform: 'uppercase' }}>
+                      Retail Listing Readiness Score
+                    </span>
+                    <h4 style={{ margin: '4px 0 6px', color: '#ffffff' }}>{robinhoodAudit.rating}</h4>
+                    <p style={{ margin: 0, fontSize: '0.88rem', color: '#94a3b8', maxWidth: 440 }}>
+                      {robinhoodAudit.summary}
+                    </p>
+                  </div>
+                  <div className="score-circle">{robinhoodAudit.score}%</div>
+                </div>
+
+                <div className="metric-card-grid">
+                  {robinhoodAudit.metrics.map((m) => (
+                    <div key={m.name} className="metric-card">
+                      <span style={{ color: m.status === 'pass' ? '#00f4a3' : '#f59e0b' }}>
+                        {m.status === 'pass' ? '✓ Passed' : '⚠ Action Needed'}
+                      </span>
+                      <strong>{m.name}</strong>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#94a3b8' }}>
+                        {m.detail}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="checklist-group" style={{ marginBottom: 18 }}>
+                  <strong style={{ color: '#ffffff', fontSize: '0.9rem' }}>
+                    Roadmap to Centralized Exchange Listing:
+                  </strong>
+                  {robinhoodAudit.actionPlan.map((action) => (
+                    <div key={action} style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>
+                      • {action}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  className="action-button primary"
+                  type="button"
+                  onClick={async () => {
+                    await navigator.clipboard?.writeText(JSON.stringify(robinhoodAudit, null, 2))
+                    showToast('Copied Robinhood compliance audit JSON!')
+                  }}
+                >
+                  Copy Robinhood Audit Memorandum
+                </button>
+              </div>
+            )}
+
+            {/* TAB 4: TELEGRAM COMMUNITY BOT */}
+            {ecosystemTab === 'telegram' && telegramBot && (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <strong style={{ color: '#ffffff', fontSize: '0.92rem' }}>
+                    Interactive Bot Slash Command Simulator:
+                  </strong>
+                  <button
+                    className="action-button secondary"
+                    type="button"
+                    style={{ padding: '6px 12px', fontSize: '0.8rem' }}
+                    onClick={async () => {
+                      await navigator.clipboard?.writeText(telegramBot.code)
+                      showToast('Copied bot.js source code!')
+                    }}
+                  >
+                    Copy bot.js Code
+                  </button>
+                </div>
+
+                <div className="bot-terminal">
+                  <div className="bot-command-row">
+                    {telegramBot.slashCommands.map((cmd) => (
+                      <button
+                        key={cmd.command}
+                        type="button"
+                        className={`bot-cmd-pill ${selectedBotCommand === cmd.command ? 'active' : ''}`}
+                        onClick={() => setSelectedBotCommand(cmd.command)}
+                      >
+                        {cmd.command}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="bot-output-window">
+                    <div style={{ color: '#38bdf8', marginBottom: 6 }}>
+                      &gt; User ran command: {selectedBotCommand}
+                    </div>
+                    {telegramBot.slashCommands.find((c) => c.command === selectedBotCommand)?.sampleResponse}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 18, display: 'flex', gap: 12 }}>
+                  <button
+                    className="action-button primary"
+                    type="button"
+                    onClick={() => {
+                      const blob = new Blob([telegramBot.code], { type: 'text/javascript' })
+                      downloadBlobAsFile(blob, `${kit.primaryTicker.replace('$', '').toLowerCase()}-telegram-bot.js`)
+                      showToast('Downloaded Telegram bot script!')
+                    }}
+                  >
+                    Download bot.js Script
+                  </button>
+                  <button className="action-button secondary" type="button" onClick={handleDownloadRaidKit}>
+                    Download Complete Raid Package (.ZIP)
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* AUTH MODAL */}
       {isAuthOpen && (
@@ -777,7 +1123,7 @@ function App() {
                 <ul className="feature-list">
                   <li>Unlimited AI generations</li>
                   <li>OpenAI / Groq / Claude cloud integration</li>
-                  <li>HD AI DALL-E & vector image studio</li>
+                  <li>HD AI DALL-E &amp; vector image studio</li>
                   <li>Unlimited saved cloud projects</li>
                   <li>Full ERC20 Solidity code export</li>
                 </ul>
@@ -797,9 +1143,9 @@ function App() {
                 </div>
                 <ul className="feature-list">
                   <li>Everything in Pro</li>
-                  <li>1-click Base & Arbitrum deployment wizard</li>
+                  <li>1-click Base &amp; Arbitrum deployment wizard</li>
                   <li>Full contract verification checklist</li>
-                  <li>Foundry & Remix automation scripts</li>
+                  <li>Foundry &amp; Remix automation scripts</li>
                   <li>Priority AI model routing</li>
                 </ul>
                 <button

@@ -90,12 +90,38 @@ ZAND AI generates the complete launch package:
 - On-chain deployment recording and block explorer linking.
 
 ### 8. Frontend SaaS Screens (`src/`)
-- **Navbar**: User profile, active tier badge (`FREE`, `PRO`, `FOUNDER`), Saved Kits drawer button, Upgrade button.
+- **Navbar**: User profile, active tier badge (`FREE`, `PRO`, `FOUNDER`), Saved Kits drawer button, Upgrade button, and 1-click Raid Kit (.ZIP) download.
 - **Auth Modal**: Tabbed Sign In / Register dialog with validation and error reporting.
 - **Saved Projects Drawer**: Browse, load, copy markdown, and delete saved kits.
 - **Image & Banner Studio Section**: Switch between Logo and Banner tabs with live vector preview and export controls.
 - **Pricing & Upgrade Modal**: Plan comparison with 1-click Stripe checkout.
 - **Token Deployment Wizard**: Network selector, contract preview, pre-flight safety checklist, and simulated/live deployment execution.
+
+### 9. 1-Click ZIP "Raid Kit" Export (`src/raidKit.ts`)
+- Bundles complete brand, code, and marketing assets into an instant downloadable `.zip`:
+  - `README.md` & `MANIFESTO.md` — Narrative, origin story, and community manifesto
+  - `TOKENOMICS.json` — Supply, chain, liquidity lock, and tax breakdown
+  - `TWEETS.txt` — 10 ready-to-fire launch posts and Twitter raid templates
+  - `assets/logo.svg` & `assets/banner.svg` — High-resolution 1:1 and 3:1 vector assets
+  - `assets/memes.json` — Viral meme templates
+  - `contracts/ethereum/` & `contracts/solana/` — ERC20 contract and Solana SPL CLI deployment scripts
+  - `bot/` — Turnkey Node.js Telegram Community Bot
+  - `exchanges/` — Uniswap/Raydium pool seeding guides and Robinhood readiness memorandum
+
+### 10. Multi-Chain Expansion: Ethereum, Solana & Robinhood (`server/ecosystems.ts`)
+- **Ethereum Mainnet & Uniswap V3**: Initial paired pool calculation (WETH ratio, starting price, initial market cap), UNCX liquidity lock instructions, and Etherscan source verification payloads.
+- **Solana SPL & Raydium**: Complete Token-2022 CLI commands (mint creation, supply minting, mint authority revocation), Raydium CPMM seeding, and Pump.fun 1-click launch metadata.
+- **Robinhood Listing Readiness Audit**: Evaluates tokenomics fairness, order-book zero-tax compatibility, and contract renounceability to generate an exchange listing readiness score (e.g. 95% Tier A Candidate) alongside Robinhood Connect debit card onramp specifications.
+
+### 11. Telegram Community Bot Scaffolding (`server/telegramBot.ts`)
+- Ready-to-deploy community Telegram bot with interactive slash commands:
+  - `/buy` — Direct swap links for Uniswap (Base & Ethereum), Raydium (Solana), and Robinhood Connect
+  - `/lore` — Full token origin story and character catchphrase
+  - `/memes` — Meme template generator
+  - `/raid` — Community tweet raid copy
+  - `/contract` — Official verified contract addresses
+  - `/tokenomics` — Supply and liquidity lock parameters
+  - `/chart` — DEXScreener and Birdeye price chart links
 
 ---
 

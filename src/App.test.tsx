@@ -35,4 +35,15 @@ describe('App', () => {
     expect(html).toContain('Deploy Contract')
     expect(html).toContain('Deploy on Base')
   })
+
+  it('renders 1-Click ZIP Raid Kit export and multi-chain ecosystem actions for Ethereum, Solana, and Robinhood', () => {
+    const html = renderToStaticMarkup(<App />)
+
+    expect(html).toContain('Raid Kit (.ZIP)')
+    expect(html).toContain('Download Raid Kit (.ZIP)')
+    expect(html).toContain('Robinhood &amp; Solana')
+    expect(html).toContain('Ecosystems &amp; DEX')
+    expect(html).toContain('Robinhood Readiness')
+    expect(html).toContain('Download Full Raid Package (.ZIP)')
+  })
 })

@@ -25,6 +25,13 @@ import {
   getStripeStatus,
   handleStripeWebhookEvent,
 } from './stripe'
+import {
+  auditRobinhoodReadiness,
+  buildLiquidityPlan,
+  buildSolanaLaunchConfig,
+  buildVerificationPayload,
+} from './ecosystems'
+import { generateTelegramBotPackage } from './telegramBot'
 
 export function createApp(): Express {
   const app = express()
@@ -413,6 +420,67 @@ export function createApp(): Express {
     }
     const deployments = await db.listDeployments(req.user.id)
     res.json({ deployments })
+  })
+
+  // ---------------- MULTI-CHAIN ECOSYSTEMS (ETHEREUM, SOLANA, ROBINHOOD) ----------------
+  app.post('/api/ecosystems/liquidity-plan', optionalAuth, (req: Request, res: Response): void => {
+    const { kit, chain, initialEthOrSol, pairedTokenPriceUsd } = req.body || {}
+    if (!kit || typeof kit !== 'object' || !kit.tokenName) {
+      res.status(400).json({ error: 'Valid launch kit required' })
+      return
+    }
+
+    const plan = buildLiquidityPlan(kit, chain, { initialEthOrSol, pairedTokenPriceUsd })
+    res.json({ plan })
+  })
+
+  app.post('/api/ecosystems/robinhood-audit', optionalAuth, (req: Request, res: Response): void => {
+    const { kit } = req.body || {}
+    if (!kit || typeof kit !== 'object' || !kit.tokenName) {
+      res.status(400).json({ error: 'Valid launch kit required' })
+      return
+    }
+
+    const audit = auditRobinhoodReadiness(kit)
+    res.json({ audit })
+  })
+
+  app.post('/api/ecosystems/solana-config', optionalAuth, (req: Request, res: Response): void => {
+    const { kit } = req.body || {}
+    if (!kit || typeof kit !== 'object' || !kit.tokenName) {
+      res.status(400).json({ error: 'Valid launch kit required' })
+      return
+    }
+
+    const config = buildSolanaLaunchConfig(kit)
+    res.json({ config })
+  })
+
+  app.post('/api/ecosystems/verification-payload', optionalAuth, (req: Request, res: Response): void => {
+    const { kit, contractAddress, networkKey } = req.body || {}
+    if (!kit || !contractAddress) {
+      res.status(400).json({ error: 'kit and contractAddress required' })
+      return
+    }
+
+    const payload = buildVerificationPayload(kit, contractAddress, networkKey)
+    res.json({ payload })
+  })
+
+  // ---------------- TELEGRAM COMMUNITY BOT ----------------
+  app.post('/api/bot/generate', optionalAuth, (req: Request, res: Response): void => {
+    const { kit, ethereumAddress, baseAddress, solanaMint } = req.body || {}
+    if (!kit || typeof kit !== 'object' || !kit.tokenName) {
+      res.status(400).json({ error: 'Valid launch kit required' })
+      return
+    }
+
+    const botPackage = generateTelegramBotPackage(kit, {
+      ethereumAddress,
+      baseAddress,
+      solanaMint,
+    })
+    res.json({ botPackage })
   })
 
   // ---------------- STATIC ASSET SERVING & SPA FALLBACK ----------------
