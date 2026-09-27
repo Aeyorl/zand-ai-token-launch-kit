@@ -27,6 +27,7 @@ import {
 import { generateVerificationPackage } from './verification'
 import { DEFAULT_ALLOCATIONS, generateVestingSolidityContract, generateVestingScheduleSvg } from './vesting'
 import { generateListingPackage } from './listingKit'
+import { generateLocalizedManifestos } from './localization'
 
 const examples = [
   'Angry billionaire cat that hates Wall Street.',
@@ -131,6 +132,9 @@ function App() {
   const [studioTab, setStudioTab] = useState<'logo' | 'banner'>('logo')
   const [activeImage, setActiveImage] = useState<GeneratedImage | null>(null)
   const [isImageLoading, setIsImageLoading] = useState(false)
+
+  // Localization state
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'zh' | 'kr' | 'jp' | 'es'>('en')
 
   // Pricing / Stripe state
   const [isPricingOpen, setIsPricingOpen] = useState(false)
@@ -896,6 +900,89 @@ function App() {
           <p>
             <strong>Chain:</strong> {kit.tokenomics.chain}
           </p>
+        </article>
+
+        <article className="card span-2 localization-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+            <h3 style={{ margin: 0 }}>Global Raid Manifesto (Multi-Language)</h3>
+            <div className="language-selector" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {(
+                [
+                  { code: 'en', label: '🇺🇸 EN' },
+                  { code: 'zh', label: '🇨🇳 中文' },
+                  { code: 'kr', label: '🇰🇷 한국어' },
+                  { code: 'jp', label: '🇯🇵 日本語' },
+                  { code: 'es', label: '🇪🇸 Español' },
+                ] as const
+              ).map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  className={`sticker-pill ${selectedLanguage === lang.code ? 'active' : ''}`}
+                  style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                  onClick={() => setSelectedLanguage(lang.code)}
+                >
+                  {lang.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {(() => {
+            const manifestos = generateLocalizedManifestos(kit)
+            const active = manifestos[selectedLanguage] || manifestos.en
+            return (
+              <div>
+                <p style={{ color: '#00f4a3', fontWeight: 800, fontSize: '0.95rem', margin: '0 0 4px' }}>
+                  {active.title}
+                </p>
+                <p style={{ fontStyle: 'italic', color: '#cbd5e1', fontSize: '0.88rem', margin: '0 0 12px' }}>
+                  &ldquo;{active.tagline}&rdquo;
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                  {active.raidMessages.map((msg) => (
+                    <div
+                      key={msg}
+                      style={{
+                        padding: 10,
+                        background: 'rgba(0, 0, 0, 0.3)',
+                        borderRadius: 8,
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 12,
+                      }}
+                    >
+                      <span style={{ fontSize: '0.82rem', color: '#f1f5f9' }}>{msg}</span>
+                      <button
+                        className="action-button secondary"
+                        type="button"
+                        style={{ padding: '4px 10px', fontSize: '0.75rem', whiteSpace: 'nowrap' }}
+                        onClick={async () => {
+                          await navigator.clipboard?.writeText(msg)
+                          showToast(`Copied ${active.languageName} raid tweet!`)
+                        }}
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  className="action-button secondary"
+                  type="button"
+                  style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+                  onClick={async () => {
+                    await navigator.clipboard?.writeText(active.markdown)
+                    showToast(`Copied full ${active.languageName} manifesto markdown!`)
+                  }}
+                >
+                  Copy Full {active.languageName} Manifesto (.MD)
+                </button>
+              </div>
+            )
+          })()}
         </article>
 
         <article className="card span-2 export-card">

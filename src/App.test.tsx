@@ -62,4 +62,14 @@ describe('App', () => {
     expect(html).toContain('Ecosystems &amp; DEX')
     expect(html).toContain('Raid Kit (.ZIP)')
   })
+
+  it('renders multi-language community raid manifesto localization', () => {
+    const html = renderToStaticMarkup(<App />)
+
+    expect(html).toContain('Global Raid Manifesto (Multi-Language)')
+    expect(html).toContain('中文')
+    expect(html).toContain('한국어')
+    expect(html).toContain('日本語')
+    expect(html).toContain('Español')
+  })
 })
